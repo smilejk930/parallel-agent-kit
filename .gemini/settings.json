@@ -1,0 +1,88 @@
+{
+  "experimental": {
+    "enableAgents": true,
+    "worktrees": true,
+    "taskTracker": true,
+    "jitContext": true
+  },
+  "general": {
+    "defaultApprovalMode": "auto_edit",
+    "checkpointing": {
+      "enabled": true
+    },
+    "plan": {
+      "enabled": true,
+      "modelRouting": true
+    },
+    "topicUpdateNarration": true
+  },
+  "context": {
+    "fileName": ["GEMINI.md", "AGENTS.md"],
+    "loadFromIncludeDirectories": true,
+    "fileFiltering": {
+      "respectGitIgnore": true
+    }
+  },
+  "tools": {
+    "useRipgrep": true,
+    "shell": {
+      "enableShellOutputEfficiency": true
+    }
+  },
+  "agents": {
+    "overrides": {
+      "planner":  { "enabled": true, "runConfig": { "maxTurns": 18, "maxTimeMinutes": 12 } },
+      "coder":    { "enabled": true, "runConfig": { "maxTurns": 40, "maxTimeMinutes": 20 } },
+      "reviewer": { "enabled": true, "runConfig": { "maxTurns": 20, "maxTimeMinutes": 10 } },
+      "tester":   { "enabled": true, "runConfig": { "maxTurns": 22, "maxTimeMinutes": 18 } },
+      "codebase_investigator": { "enabled": true },
+      "generalist": { "enabled": true }
+    }
+  },
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "timeout": 60000,
+      "trust": false,
+      "description": "Headless browser automation — Tester uses this for real viewport/touch-event verification. Planner uses it read-only to measure current UI state when drafting Acceptance Criteria.",
+      "env": {
+        "PLAYWRIGHT_HEADLESS": "true"
+      },
+      "excludeTools": [
+        "browser_close_all_contexts"
+      ]
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "name": "bootstrap-parallel-kit",
+            "type": "command",
+            "command": "node .gemini/hooks/session-start.mjs",
+            "timeout": 5000,
+            "description": "Ensures .gemini/plans, .gemini/reports, and .gemini/worktrees exist and injects a short orchestration primer."
+          }
+        ]
+      }
+    ],
+    "BeforeTool": [
+      {
+        "matcher": "run_shell_command",
+        "sequential": true,
+        "hooks": [
+          {
+            "name": "guard-destructive-git",
+            "type": "command",
+            "command": "node .gemini/hooks/guard-destructive-git.mjs",
+            "timeout": 3000,
+            "description": "Blocks force-push, hard-reset on protected branches, and -A stages in the pipeline."
+          }
+        ]
+      }
+    ]
+  }
+}

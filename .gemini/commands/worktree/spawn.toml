@@ -1,0 +1,52 @@
+# /worktree:spawn <slug> <task-id>
+#
+# Creates (or reuses) an isolated git worktree at
+# .gemini/worktrees/<slug>-<task-id> on branch agent/<slug>/<task-id>.
+# Uses Gemini CLI's shell injection (`!{...}`) — no external script.
+
+description = "Coder용 독립 git worktree + 브랜치 생성 (병렬 작업용)."
+
+prompt = """
+You are executing the /worktree:spawn command. Arguments: `{{args}}`.
+Parse the first token as `<slug>` and the second as `<task-id>`.
+
+Run these shell commands in order and report the final worktree path.
+If a command fails because the worktree already exists, treat that as
+success and fall through to reporting the path.
+
+```
+!{
+  set -e
+  args="{{args}}"
+  slug=$(echo "$args" | awk '{print $1}')
+  task=$(echo "$args" | awk '{print $2}')
+  if [ -z "$slug" ] || [ -z "$task" ]; then
+    echo "USAGE: /worktree:spawn <slug> <task-id>" >&2
+    exit 64
+  fi
+  branch="agent/${slug}/${task}"
+  path=".gemini/worktrees/${slug}-${task}"
+
+  # Make sure the parent dir exists
+  mkdir -p .gemini/worktrees
+
+  # Create branch from current HEAD if missing
+  if ! git show-ref --verify --quiet "refs/heads/${branch}"; then
+    git branch "${branch}" HEAD
+  fi
+
+  # Create worktree if missing
+  if [ ! -d "${path}" ]; then
+    git worktree add "${path}" "${branch}"
+  fi
+
+  echo "WORKTREE_READY ${path} ${branch}"
+}
+```
+
+After the shell block finishes, emit a single-line JSON handoff:
+
+```
+{"slug":"<slug>","task":"<task-id>","branch":"agent/<slug>/<task-id>","worktree":".gemini/worktrees/<slug>-<task-id>"}
+```
+"""

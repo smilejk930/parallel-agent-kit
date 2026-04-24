@@ -1,0 +1,37 @@
+# /worktree:cleanup [slug]
+#
+# Removes all agent worktrees and their branches. If <slug> is passed,
+# only that slug is cleaned up. No force flags unless explicitly confirmed.
+
+description = "에이전트 worktree + 브랜치 정리."
+
+prompt = '''
+Execute the cleanup based on args `{{args}}`.
+
+```
+!{
+  set -e
+  filter="{{args}}"
+  base=".gemini/worktrees"
+  if [ ! -d "$base" ]; then
+    echo "no worktrees to clean"
+    exit 0
+  fi
+  for wt in "$base"/*; do
+    [ -d "$wt" ] || continue
+    name=$(basename "$wt")
+    if [ -n "$filter" ] && ! echo "$name" | grep -q "^${filter}-"; then
+      continue
+    fi
+    echo "cleaning $wt"
+    git worktree remove "$wt" --force || true
+    branch="agent/$(echo "$name" | sed 's/-\(T-[0-9]*\)$/\/\1/')"
+    git branch -D "$branch" 2>/dev/null || true
+  done
+  git worktree prune
+}
+```
+
+Report in plain text how many worktrees were removed and list any that
+could not be removed.
+'''

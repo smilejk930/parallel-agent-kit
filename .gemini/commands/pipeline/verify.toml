@@ -1,0 +1,29 @@
+# /pipeline:verify <task-id> <plan-path> <branch>
+#
+# Fan out Reviewer + Tester on the same task IN PARALLEL. Use this when
+# a Coder re-pushes a fix and you want another verification round without
+# re-planning.
+
+description = "단일 task에 대해 Reviewer+Tester를 병렬로 다시 돌려 검증."
+
+prompt = """
+Arguments: `{{args}}` → expected tokens: `<task-id> <plan-path> <branch>`.
+
+Dispatch the two verifier agents **simultaneously**. Gemini CLI routes
+these to isolated context loops so they cannot influence each other:
+
+> @reviewer {{args}}
+> @tester   {{args}}
+
+Collect BOTH JSON handoffs. Emit a merged verdict:
+
+```
+{"task":"<id>","reviewer":"pass|fail","tester":"pass|fail","overall":"pass|fail","feedback":"<one paragraph only if fail>"}
+```
+
+Rules:
+- `overall` = `pass` iff both are `pass`.
+- If `overall` is `fail`, concatenate Reviewer.findings + Tester.excerpt
+  into `feedback` so the Coder receives a single actionable prompt.
+- Do NOT attempt to fix the code yourself — that is the Coder's job.
+"""

@@ -1,0 +1,36 @@
+# /pipeline:status
+#
+# Quick read-only snapshot of all in-flight agent worktrees + reports.
+
+description = "현재 병렬 파이프라인 상태 스냅샷 (worktree, 브랜치, 최신 리포트)."
+
+prompt = '''
+Run the snapshot and summarize.
+
+```
+!{
+  set +e
+  echo "## worktrees"
+  git worktree list 2>/dev/null | grep "\.gemini/worktrees" || echo "none"
+  echo
+  echo "## agent branches"
+  git branch --list 'agent/*' 2>/dev/null || echo "none"
+  echo
+  echo "## latest reports"
+  if [ -d .gemini/reports ]; then
+    find .gemini/reports -type f -name '*.json' -printf '%T@ %p\n' 2>/dev/null |
+      sort -rn | head -20 | awk '{print $2}'
+  else
+    echo "none"
+  fi
+  echo
+  echo "## plans"
+  ls .gemini/plans/*.md 2>/dev/null || echo "none"
+}
+```
+
+Then render a human-readable markdown table with columns
+`task | branch | worktree | last_verdict` using the information above.
+`last_verdict` is the `verdict` field from the most recent report JSON
+for that task (omit if no report yet).
+'''
